@@ -23,6 +23,15 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("release")
+        }
+    }
+    signingConfigs {
+        create("release") {
+            storeFile = file(project.property("KEYSTORE_FILE") as String)
+            storePassword = project.property("KEYSTORE_PASSWORD") as String
+            keyAlias = project.property("KEY_ALIAS") as String
+            keyPassword = project.property("KEY_PASSWORD") as String
         }
     }
     compileOptions {
