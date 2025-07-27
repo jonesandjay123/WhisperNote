@@ -8,6 +8,20 @@ import com.google.android.gms.wearable.*
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 
+/**
+ * WhisperNote Wear OS App - Main Activity
+ * 
+ * Features:
+ * - Sync ideas list from phone with pull-based approach
+ * - Display ideas in a scrollable list optimized for round watch screens
+ * - Send new ideas to phone through expandable input interface
+ * - Dark mode UI optimized for Wear OS
+ * 
+ * UI Components:
+ * - Sync Button: Pull latest ideas from phone
+ * - Send Button: Toggle input field for adding new ideas
+ * - Ideas Container: Scrollable list showing all synced ideas
+ */
 class MainActivity : Activity(), MessageClient.OnMessageReceivedListener {
     
     private lateinit var syncButton: Button

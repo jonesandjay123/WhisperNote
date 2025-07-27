@@ -5,12 +5,22 @@ import android.os.Bundle
 import android.widget.*
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import com.google.android.gms.wearable.*
 import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 
+/**
+ * WhisperNote Phone App - Main Activity
+ * 
+ * Features:
+ * - Manage a list of ideas/notes with add, edit, delete operations
+ * - Respond to Wear OS watch requests for idea list synchronization
+ * - Receive new ideas from the watch and add them to the list
+ * 
+ * Communication Protocol:
+ * - REQUEST_LIST_PATH: Watch requests the current ideas list
+ * - RESPONSE_LIST_PATH: Phone sends ideas list to watch
+ * - ADD_IDEA_PATH: Watch sends a new idea to be added
+ */
 class MainActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListener {
     
     private lateinit var newIdeaEditText: EditText
@@ -24,9 +34,10 @@ class MainActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListene
     private val gson = Gson()
     
     companion object {
-        private const val REQUEST_LIST_PATH = "/request_list"
-        private const val RESPONSE_LIST_PATH = "/response_list"
-        private const val ADD_IDEA_PATH = "/add_idea"
+        // Wear OS communication paths
+        private const val REQUEST_LIST_PATH = "/request_list"    // Watch → Phone: Request ideas list
+        private const val RESPONSE_LIST_PATH = "/response_list"  // Phone → Watch: Send ideas list
+        private const val ADD_IDEA_PATH = "/add_idea"           // Watch → Phone: Add new idea
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
