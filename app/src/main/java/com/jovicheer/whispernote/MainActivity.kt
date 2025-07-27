@@ -1,26 +1,32 @@
 package com.jovicheer.whispernote
 
+import android.app.AlertDialog
 import android.os.Bundle
-import android.widget.Button
-import android.widget.EditText
-import android.widget.TextView
-import android.widget.Toast
+import android.widget.*
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.google.android.gms.wearable.*
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 
-class MainActivity : AppCompatActivity(), DataClient.OnDataChangedListener {
+class MainActivity : AppCompatActivity(), MessageClient.OnMessageReceivedListener {
     
-    private lateinit var messageEditText: EditText
-    private lateinit var sendButton: Button
+    private lateinit var newIdeaEditText: EditText
+    private lateinit var addIdeaButton: Button
     private lateinit var statusTextView: TextView
-    private lateinit var dataClient: DataClient
+    private lateinit var ideasListView: ListView
+    private lateinit var messageClient: MessageClient
+    
+    private val ideasList = mutableListOf<String>()
+    private lateinit var listAdapter: ArrayAdapter<String>
+    private val gson = Gson()
     
     companion object {
-        private const val MESSAGE_PATH = "/message"
-        private const val MESSAGE_KEY = "message_data"
+        private const val REQUEST_LIST_PATH = "/request_list"
+        private const val RESPONSE_LIST_PATH = "/response_list"
+        private const val ADD_IDEA_PATH = "/add_idea"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -28,65 +34,144 @@ class MainActivity : AppCompatActivity(), DataClient.OnDataChangedListener {
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
         
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
-        }
-        
         initViews()
         initWearableClient()
+        setupListView()
+        loadSampleData()
     }
     
     private fun initViews() {
-        messageEditText = findViewById(R.id.messageEditText)
-        sendButton = findViewById(R.id.sendButton)
+        newIdeaEditText = findViewById(R.id.newIdeaEditText)
+        addIdeaButton = findViewById(R.id.addIdeaButton)
         statusTextView = findViewById(R.id.statusTextView)
+        ideasListView = findViewById(R.id.ideasListView)
         
-        sendButton.setOnClickListener {
-            sendMessageToWatch()
+        addIdeaButton.setOnClickListener {
+            addNewIdea()
         }
     }
     
     private fun initWearableClient() {
-        dataClient = Wearable.getDataClient(this)
+        messageClient = Wearable.getMessageClient(this)
     }
     
-    private fun sendMessageToWatch() {
-        val message = messageEditText.text.toString().trim()
-        if (message.isEmpty()) {
-            Toast.makeText(this, "Please enter a message", Toast.LENGTH_SHORT).show()
+    private fun setupListView() {
+        listAdapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, ideasList)
+        ideasListView.adapter = listAdapter
+        
+        // 點擊編輯
+        ideasListView.setOnItemClickListener { _, _, position, _ ->
+            editIdea(position)
+        }
+        
+        // 長按刪除
+        ideasListView.setOnItemLongClickListener { _, _, position, _ ->
+            deleteIdea(position)
+            true
+        }
+    }
+    
+    private fun loadSampleData() {
+        ideasList.addAll(listOf(
+            "Learn Kotlin for Android development",
+            "Build a Wear OS app",
+            "Implement data synchronization",
+            "Create a note-taking system"
+        ))
+        listAdapter.notifyDataSetChanged()
+        statusTextView.text = "Status: ${ideasList.size} ideas loaded"
+    }
+    
+    private fun addNewIdea() {
+        val idea = newIdeaEditText.text.toString().trim()
+        if (idea.isEmpty()) {
+            Toast.makeText(this, "Please enter an idea", Toast.LENGTH_SHORT).show()
             return
         }
         
-        statusTextView.text = "Status: Sending..."
+        ideasList.add(idea)
+        listAdapter.notifyDataSetChanged()
+        newIdeaEditText.text.clear()
+        statusTextView.text = "Status: Idea added (${ideasList.size} total)"
+        Toast.makeText(this, "Idea added!", Toast.LENGTH_SHORT).show()
+    }
+    
+    private fun editIdea(position: Int) {
+        val editText = EditText(this)
+        editText.setText(ideasList[position])
         
-        val putDataReq = PutDataMapRequest.create(MESSAGE_PATH).apply {
-            dataMap.putString(MESSAGE_KEY, message)
-            dataMap.putLong("timestamp", System.currentTimeMillis())
-        }.asPutDataRequest().setUrgent()
+        AlertDialog.Builder(this)
+            .setTitle("Edit Idea")
+            .setView(editText)
+            .setPositiveButton("Save") { _, _ ->
+                val newText = editText.text.toString().trim()
+                if (newText.isNotEmpty()) {
+                    ideasList[position] = newText
+                    listAdapter.notifyDataSetChanged()
+                    statusTextView.text = "Status: Idea updated"
+                    Toast.makeText(this, "Idea updated!", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+    
+    private fun deleteIdea(position: Int) {
+        AlertDialog.Builder(this)
+            .setTitle("Delete Idea")
+            .setMessage("Delete \"${ideasList[position]}\"?")
+            .setPositiveButton("Delete") { _, _ ->
+                ideasList.removeAt(position)
+                listAdapter.notifyDataSetChanged()
+                statusTextView.text = "Status: Idea deleted (${ideasList.size} total)"
+                Toast.makeText(this, "Idea deleted!", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+    
+    private fun sendIdeasListToWatch(nodeId: String) {
+        val jsonList = gson.toJson(ideasList)
+        val messageBytes = jsonList.toByteArray()
         
-        dataClient.putDataItem(putDataReq).addOnSuccessListener {
-            statusTextView.text = "Status: Message sent successfully!"
-            messageEditText.text.clear()
-            Toast.makeText(this, "Message sent to watch!", Toast.LENGTH_SHORT).show()
-        }.addOnFailureListener { exception ->
-            statusTextView.text = "Status: Failed to send message"
-            Toast.makeText(this, "Failed to send: ${exception.message}", Toast.LENGTH_LONG).show()
-        }
+        messageClient.sendMessage(nodeId, RESPONSE_LIST_PATH, messageBytes)
+            .addOnSuccessListener {
+                statusTextView.text = "Status: List sent to watch (${ideasList.size} ideas)"
+                Toast.makeText(this, "Ideas list sent to watch!", Toast.LENGTH_SHORT).show()
+            }
+            .addOnFailureListener { exception ->
+                statusTextView.text = "Status: Failed to send list"
+                Toast.makeText(this, "Failed to send: ${exception.message}", Toast.LENGTH_LONG).show()
+            }
     }
     
     override fun onResume() {
         super.onResume()
-        dataClient.addListener(this)
+        messageClient.addListener(this)
     }
     
     override fun onPause() {
         super.onPause()
-        dataClient.removeListener(this)
+        messageClient.removeListener(this)
     }
     
-    override fun onDataChanged(dataEvents: DataEventBuffer) {
-        // Handle any data changes from watch if needed
+    override fun onMessageReceived(messageEvent: MessageEvent) {
+        when (messageEvent.path) {
+            REQUEST_LIST_PATH -> {
+                // 手錶請求清單
+                val nodeId = messageEvent.sourceNodeId
+                sendIdeasListToWatch(nodeId)
+            }
+            ADD_IDEA_PATH -> {
+                // 手錶傳來新增的想法
+                val newIdea = String(messageEvent.data)
+                runOnUiThread {
+                    ideasList.add(newIdea)
+                    listAdapter.notifyDataSetChanged()
+                    statusTextView.text = "Status: New idea from watch! (${ideasList.size} total)"
+                    Toast.makeText(this, "New idea added from watch: $newIdea", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
     }
 }

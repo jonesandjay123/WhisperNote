@@ -40,4 +40,5 @@ android {
 dependencies {
     implementation(libs.androidx.wear)
     implementation(libs.play.services.wearable)
+    implementation("com.google.code.gson:gson:2.10.1")
 }

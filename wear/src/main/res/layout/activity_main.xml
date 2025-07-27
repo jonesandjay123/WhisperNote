@@ -1,51 +1,128 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="12dp"
-    android:gravity="center">
+    android:background="#000000"
+    android:padding="6dp"
+    android:paddingBottom="24dp">
 
-    <TextView
-        android:id="@+id/titleTextView"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="WhisperNote Watch"
-        android:textSize="16sp"
-        android:textStyle="bold"
-        android:gravity="center"
-        android:layout_marginBottom="16dp"
-        android:textColor="@android:color/white" />
+        android:orientation="vertical">
 
-    <Button
-        android:id="@+id/startReceivingButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Start Receiving"
-        android:textSize="11sp"
-        android:layout_marginBottom="16dp"
-        android:minHeight="40dp" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="WhisperNote"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:layout_marginBottom="10dp"
+            android:textColor="#FFFFFF"
+            android:background="#1A1A1A"
+            android:padding="8dp" />
 
-    <TextView
-        android:id="@+id/messageTextView"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="No message received"
-        android:textSize="12sp"
-        android:gravity="center"
-        android:background="@android:color/darker_gray"
-        android:padding="8dp"
-        android:minHeight="50dp"
-        android:layout_marginBottom="12dp"
-        android:textColor="@android:color/white" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
 
-    <TextView
-        android:id="@+id/statusTextView"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Status: Not listening"
-        android:textSize="10sp"
-        android:gravity="center"
-        android:textColor="@android:color/white" />
+            <Button
+                android:id="@+id/syncButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="📱 Sync"
+                android:textSize="12sp"
+                android:textColor="#FFFFFF"
+                android:background="#2196F3"
+                android:minHeight="40dp"
+                android:layout_marginEnd="3dp" />
 
-</LinearLayout>
+            <Button
+                android:id="@+id/sendButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="📝 Send"
+                android:textSize="12sp"
+                android:textColor="#FFFFFF"
+                android:background="#4CAF50"
+                android:minHeight="40dp"
+                android:layout_marginStart="3dp" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/inputLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:visibility="gone"
+            android:background="#2A2A2A"
+            android:padding="6dp"
+            android:layout_marginBottom="8dp">
+
+            <EditText
+                android:id="@+id/newIdeaEditText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="New idea..."
+                android:textSize="12sp"
+                android:minHeight="36dp"
+                android:layout_marginEnd="4dp"
+                android:textColor="#FFFFFF"
+                android:textColorHint="#AAAAAA"
+                android:background="#404040"
+                android:padding="8dp" />
+
+            <Button
+                android:id="@+id/submitButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="➤"
+                android:textSize="14sp"
+                android:textColor="#FFFFFF"
+                android:background="#FF5722"
+                android:minHeight="36dp"
+                android:minWidth="36dp" />
+
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/statusTextView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Status: Ready"
+            android:textSize="10sp"
+            android:gravity="center"
+            android:layout_marginBottom="6dp"
+            android:textColor="#CCCCCC"
+            android:background="#1A1A1A"
+            android:padding="4dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Ideas List:"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:layout_marginBottom="4dp"
+            android:textColor="#FFFFFF" />
+
+        <LinearLayout
+            android:id="@+id/ideasContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#1A1A1A"
+            android:padding="4dp"
+            android:layout_marginBottom="20dp" />
+
+    </LinearLayout>
+
+</ScrollView>

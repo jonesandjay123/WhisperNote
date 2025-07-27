@@ -2,23 +2,32 @@ package com.jovicheer.whispernote
 
 import android.app.Activity
 import android.os.Bundle
-import android.widget.Button
-import android.widget.TextView
-import android.widget.Toast
+import android.view.View
+import android.widget.*
 import com.google.android.gms.wearable.*
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 
-class MainActivity : Activity(), DataClient.OnDataChangedListener {
+class MainActivity : Activity(), MessageClient.OnMessageReceivedListener {
     
-    private lateinit var titleTextView: TextView
-    private lateinit var startReceivingButton: Button
-    private lateinit var messageTextView: TextView
+    private lateinit var syncButton: Button
+    private lateinit var sendButton: Button
+    private lateinit var inputLayout: LinearLayout
+    private lateinit var newIdeaEditText: EditText
+    private lateinit var submitButton: Button
     private lateinit var statusTextView: TextView
-    private lateinit var dataClient: DataClient
-    private var isReceiving = false
+    private lateinit var ideasContainer: LinearLayout
+    
+    private lateinit var messageClient: MessageClient
+    private lateinit var nodeClient: NodeClient
+    
+    private val ideasList = mutableListOf<String>()
+    private val gson = Gson()
     
     companion object {
-        private const val MESSAGE_PATH = "/message"
-        private const val MESSAGE_KEY = "message_data"
+        private const val REQUEST_LIST_PATH = "/request_list"
+        private const val RESPONSE_LIST_PATH = "/response_list"
+        private const val ADD_IDEA_PATH = "/add_idea"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -27,63 +36,168 @@ class MainActivity : Activity(), DataClient.OnDataChangedListener {
         
         initViews()
         initWearableClient()
+        setupIdeasContainer()
     }
     
     private fun initViews() {
-        titleTextView = findViewById(R.id.titleTextView)
-        startReceivingButton = findViewById(R.id.startReceivingButton)
-        messageTextView = findViewById(R.id.messageTextView)
+        syncButton = findViewById(R.id.syncButton)
+        sendButton = findViewById(R.id.sendButton)
+        inputLayout = findViewById(R.id.inputLayout)
+        newIdeaEditText = findViewById(R.id.newIdeaEditText)
+        submitButton = findViewById(R.id.submitButton)
         statusTextView = findViewById(R.id.statusTextView)
+        ideasContainer = findViewById(R.id.ideasContainer)
         
-        startReceivingButton.setOnClickListener {
-            toggleReceiving()
+        syncButton.setOnClickListener {
+            syncWithPhone()
+        }
+        
+        sendButton.setOnClickListener {
+            toggleInputLayout()
+        }
+        
+        submitButton.setOnClickListener {
+            sendNewIdeaToPhone()
         }
     }
     
     private fun initWearableClient() {
-        dataClient = Wearable.getDataClient(this)
+        messageClient = Wearable.getMessageClient(this)
+        nodeClient = Wearable.getNodeClient(this)
     }
     
-    private fun toggleReceiving() {
-        isReceiving = !isReceiving
-        if (isReceiving) {
-            startReceivingButton.text = "Stop Receiving"
-            statusTextView.text = "Status: Listening for messages..."
-            Toast.makeText(this, "Started listening for messages", Toast.LENGTH_SHORT).show()
-        } else {
-            startReceivingButton.text = "Start Receiving"
-            statusTextView.text = "Status: Not listening"
-            messageTextView.text = "No message received"
-            Toast.makeText(this, "Stopped listening", Toast.LENGTH_SHORT).show()
+    private fun setupIdeasContainer() {
+        updateIdeasDisplay()
+    }
+    
+    private fun updateIdeasDisplay() {
+        ideasContainer.removeAllViews()
+        
+        for (idea in ideasList) {
+            val ideaView = TextView(this).apply {
+                text = idea
+                textSize = 11f
+                setTextColor(0xFFFFFFFF.toInt())
+                setBackgroundColor(0xFF2A2A2A.toInt())
+                setPadding(16, 12, 16, 12)
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    setMargins(0, 0, 0, 4)
+                }
+                minHeight = 72 // 36dp * 2 for better touch target on watch
+                gravity = android.view.Gravity.CENTER_VERTICAL
+            }
+            ideasContainer.addView(ideaView)
         }
+    }
+    
+    private fun syncWithPhone() {
+        statusTextView.text = "Status: Syncing..."
+        Toast.makeText(this, "Syncing with phone...", Toast.LENGTH_SHORT).show()
+        
+        nodeClient.connectedNodes.addOnSuccessListener { connectedNodes ->
+            if (connectedNodes.isNotEmpty()) {
+                val phoneNodeId = connectedNodes.first().id
+                sendSyncRequestToPhone(phoneNodeId)
+            } else {
+                statusTextView.text = "Status: No phone connected"
+                Toast.makeText(this, "No phone connected", Toast.LENGTH_SHORT).show()
+            }
+        }.addOnFailureListener { exception ->
+            statusTextView.text = "Status: Failed to find phone"
+            Toast.makeText(this, "Failed to find phone: ${exception.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+    
+    private fun sendSyncRequestToPhone(nodeId: String) {
+        val requestBytes = "sync_request".toByteArray()
+        
+        messageClient.sendMessage(nodeId, REQUEST_LIST_PATH, requestBytes)
+            .addOnSuccessListener {
+                statusTextView.text = "Status: Sync request sent..."
+            }
+            .addOnFailureListener { exception ->
+                statusTextView.text = "Status: Failed to sync"
+                Toast.makeText(this, "Failed to sync: ${exception.message}", Toast.LENGTH_LONG).show()
+            }
+    }
+    
+    private fun toggleInputLayout() {
+        if (inputLayout.visibility == View.GONE) {
+            inputLayout.visibility = View.VISIBLE
+            sendButton.text = "✕ Cancel"
+            newIdeaEditText.requestFocus()
+        } else {
+            inputLayout.visibility = View.GONE
+            sendButton.text = "📝 Send"
+            newIdeaEditText.text.clear()
+        }
+    }
+    
+    private fun sendNewIdeaToPhone() {
+        val idea = newIdeaEditText.text.toString().trim()
+        if (idea.isEmpty()) {
+            Toast.makeText(this, "Please enter an idea", Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        statusTextView.text = "Status: Sending idea..."
+        
+        nodeClient.connectedNodes.addOnSuccessListener { connectedNodes ->
+            if (connectedNodes.isNotEmpty()) {
+                val phoneNodeId = connectedNodes.first().id
+                sendIdeaToPhone(phoneNodeId, idea)
+            } else {
+                statusTextView.text = "Status: No phone connected"
+                Toast.makeText(this, "No phone connected", Toast.LENGTH_SHORT).show()
+            }
+        }.addOnFailureListener { exception ->
+            statusTextView.text = "Status: Failed to find phone"
+            Toast.makeText(this, "Failed to find phone: ${exception.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+    
+    private fun sendIdeaToPhone(nodeId: String, idea: String) {
+        val ideaBytes = idea.toByteArray()
+        
+        messageClient.sendMessage(nodeId, ADD_IDEA_PATH, ideaBytes)
+            .addOnSuccessListener {
+                statusTextView.text = "Status: Idea sent successfully!"
+                Toast.makeText(this, "Idea sent to phone!", Toast.LENGTH_SHORT).show()
+                toggleInputLayout() // 關閉輸入框
+                // 自動同步更新清單
+                syncWithPhone()
+            }
+            .addOnFailureListener { exception ->
+                statusTextView.text = "Status: Failed to send idea"
+                Toast.makeText(this, "Failed to send: ${exception.message}", Toast.LENGTH_LONG).show()
+            }
     }
     
     override fun onResume() {
         super.onResume()
-        dataClient.addListener(this)
+        messageClient.addListener(this)
     }
     
     override fun onPause() {
         super.onPause()
-        dataClient.removeListener(this)
+        messageClient.removeListener(this)
     }
     
-    override fun onDataChanged(dataEvents: DataEventBuffer) {
-        if (!isReceiving) return
-        
-        for (event in dataEvents) {
-            if (event.type == DataEvent.TYPE_CHANGED) {
-                val dataItem = event.dataItem
-                if (dataItem.uri.path == MESSAGE_PATH) {
-                    val dataMap = DataMapItem.fromDataItem(dataItem).dataMap
-                    val message = dataMap.getString(MESSAGE_KEY)
-                    
-                    runOnUiThread {
-                        messageTextView.text = "Received: $message"
-                        statusTextView.text = "Status: Message received!"
-                        Toast.makeText(this, "New message from phone!", Toast.LENGTH_SHORT).show()
-                    }
-                }
+    override fun onMessageReceived(messageEvent: MessageEvent) {
+        if (messageEvent.path == RESPONSE_LIST_PATH) {
+            val jsonList = String(messageEvent.data)
+            val type = object : TypeToken<List<String>>() {}.type
+            val newIdeasList: List<String> = gson.fromJson(jsonList, type)
+            
+            runOnUiThread {
+                ideasList.clear()
+                ideasList.addAll(newIdeasList)
+                updateIdeasDisplay()
+                statusTextView.text = "Status: Synced! (${ideasList.size} ideas)"
+                Toast.makeText(this, "Synced ${ideasList.size} ideas from phone!", Toast.LENGTH_SHORT).show()
             }
         }
     }
